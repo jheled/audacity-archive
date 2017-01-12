@@ -24,19 +24,25 @@ def getAUdata(fn) :
   return f
   
 parser = argparse.ArgumentParser(description =
-  """daud decompresses an audacity archive created by 'caud'. That is all you need to know""")
+  """daud decompresses an audacity archive created by 'caud'. That is all you need to know.""")
 
 parser.add_argument("cproject", metavar="FILE")
-# parser.add_argument("dir", help="directory to create files in")
 
 options = parser.parse_args()
 
-assert os.path.exists(options.cproject) and options.cproject.endswith('.aup.save.tar.gz')
-projectName = os.path.basename(options.cproject[:-len('.aup.save.tar.gz')])
-#print projectName + ".aup", os.path.exists(projectName + ".aup")
-#print os.path.exists(projectName + "_data.aup")
+if not os.path.exists(options.cproject) :
+  print >> sys.stderr, "Can't open file (",options.cproject,")"
+  sys.exit(1)
 
-assert not (os.path.exists(projectName + ".aup") or os.path.exists(projectName + "_data.aup"))
+if not options.cproject.endswith('.aup.save.tar.gz') :
+  print >> sys.stderr, "Wrong extension (should be .aup.save.tar.gz)"
+  sys.exit(1)
+  
+projectName = os.path.basename(options.cproject[:-len('.aup.save.tar.gz')])
+
+if (os.path.exists(projectName + ".aup") or os.path.exists(projectName + "_data.aup")) :
+  print >> sys.stderr, "(Cowardly) refusing to overwrite files."
+  sys.exit(1)
 
 import tempfile, shutil, subprocess
 

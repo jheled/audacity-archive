@@ -95,9 +95,17 @@ parser.add_argument("dir", metavar="DIR", help="work directory for all temporary
 
 options = parser.parse_args()
 
-assert options.dir is not None
-assert os.path.exists(options.project)
-assert options.format in set(["wv","ogg"])
+if not os.path.isdir(options.dir) :
+  print >> sys.stderr, "No work directory? (",options.dir,")"
+  sys.exit(1)
+  
+if not os.path.exists(options.project) :
+  print >> sys.stderr, "Can't open project (",options.project,")."
+  sys.exit(1)
+  
+if not options.format in set(["wv","ogg"]) :
+  print >> sys.stderr, "Unsupported format (",options.format,")."
+  sys.exit(1)
 
 basedir = os.path.dirname(options.project).rstrip('/').strip()
 options.dir = options.dir.rstrip('/')
@@ -123,23 +131,13 @@ base = base + root.attrib['projname'] + '/'
 aufiles = set(glob.glob(base + '*/*/*.au'))
 # print "**",(base + '*/*/*.au'), len(aufiles)
 
+if not os.path.isdir(base) :
+  print >> sys.stderr, "Missing data directory. corrupted project?"
+  sys.exit(1)
+  
 aufiles = dict([(os.path.basename(f),f) for f in aufiles])
 
 bundle = []
-# for track in root.findall('ns:wavetrack', namespaces = namespace) :
-#   for clip in track.findall('ns:waveclip', namespaces = namespace) :
-#     for seq in clip.findall('ns:sequence', namespaces = namespace) :
-#       bundle.append([])
-#       for waveblock in seq.findall('ns:waveblock', namespaces = namespace):
-#         for sb in waveblock.findall('ns:simpleblockfile', namespaces = namespace):
-#           if 'filename' in sb.attrib:
-#             assert sb.attrib['filename'] in aufiles, aufiles
-#             #print track.attrib['name'],aufiles[sb.attrib['filename']]
-#             bundle[-1].append(aufiles[sb.attrib['filename']])
-#       if not bundle[-1] :
-#         bundle.pop(-1)
-#       else :
-#         bundle[-1] = (track,bundle[-1])
 
 for track in root.findall('ns:wavetrack', namespaces = namespace) :
   bundle.append([])
@@ -208,14 +206,41 @@ shutil.copy(options.project, options.dir + '/')
 fls.append(os.path.basename(options.project))
 master.close()
 
+fimported = root.findall('ns:import', namespaces = namespace)
+if fimported :
+  pdir = options.dir + '/' + root.attrib['projname']
+  if not os.path.isdir(pdir) :
+    try: 
+      os.makedirs(pdir)
+    except OSError:
+      if not os.path.isdir(pdir):
+        raise
+  
+  for imported in fimported :
+    ifile = base + imported.attrib['filename']
+    if not os.path.exists(ifile) :
+      print >> sys.stderr, "Imported file missing. Corrupted project?"
+      sys.exit(1)
+    shutil.copy(ifile, pdir)
+    fls.append(root.attrib['projname'] + '/' + os.path.basename(ifile))
+  
 if progress: print >> sys.stderr, ", packing",
 
 p = subprocess.Popen(["tar", "cfz", os.getcwd() + '/' + os.path.basename(options.project) + '.save.tar.gz']
                      + fls, cwd = options.dir)
 s = p.wait()
-assert s == 0
+if not (s == 0) :
+  print >> sys.stderr, "tar failed"
+  sys.exit(1)
 
 if progress: print >> sys.stderr, ", done"
 
 for f in fls:
   os.remove(options.dir + '/' + f)
+  
+if fimported:
+  try:
+    os.rmdir(pdir)
+  except OSError:
+    ## ok to fail
+    pass
