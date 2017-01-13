@@ -134,6 +134,11 @@ aufiles = set(glob.glob(base + '*/*/*.au'))
 if not os.path.isdir(base) :
   print >> sys.stderr, "Missing data directory. corrupted project?"
   sys.exit(1)
+
+outFile = os.getcwd() + '/' + os.path.basename(options.project) + '.save.tar.gz'
+if os.path.exists(outFile) :
+  print >> sys.stderr, outFile,"exists. bye."
+  sys.exit(1)
   
 aufiles = dict([(os.path.basename(f),f) for f in aufiles])
 
@@ -226,8 +231,7 @@ if fimported :
   
 if progress: print >> sys.stderr, ", packing",
 
-p = subprocess.Popen(["tar", "cfz", os.getcwd() + '/' + os.path.basename(options.project) + '.save.tar.gz']
-                     + fls, cwd = options.dir)
+p = subprocess.Popen(["tar", "cfz", outFile] + fls, cwd = options.dir)
 s = p.wait()
 if not (s == 0) :
   print >> sys.stderr, "tar failed"
